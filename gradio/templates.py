@@ -132,7 +132,8 @@ class Sketchpad(components.ImageEditor):
         brush: Brush | None = None,
         format: str = "webp",
         layers: bool = True,
-        canvas_size: tuple[int, int] | None = None,
+        canvas_size: tuple[int, int] = (800, 800),
+        fixed_canvas: bool = False,
         show_fullscreen_button: bool = True,
     ):
         if not brush:
@@ -170,6 +171,7 @@ class Sketchpad(components.ImageEditor):
             layers=layers,
             canvas_size=canvas_size,
             show_fullscreen_button=show_fullscreen_button,
+            fixed_canvas=fixed_canvas,
         )
 
 
@@ -217,7 +219,8 @@ class Paint(components.ImageEditor):
         brush: Brush | None = None,
         format: str = "webp",
         layers: bool = True,
-        canvas_size: tuple[int, int] | None = None,
+        canvas_size: tuple[int, int] = (800, 800),
+        fixed_canvas: bool = False,
         show_fullscreen_button: bool = True,
         placeholder: str | None = None,
     ):
@@ -254,6 +257,7 @@ class Paint(components.ImageEditor):
             canvas_size=canvas_size,
             show_fullscreen_button=show_fullscreen_button,
             placeholder=placeholder,
+            fixed_canvas=fixed_canvas,
         )
 
 
@@ -305,8 +309,9 @@ class ImageMask(components.ImageEditor):
         eraser: Eraser | None = None,
         brush: Brush | None = None,
         format: str = "webp",
-        layers: bool = True,
-        canvas_size: tuple[int, int] | None = None,
+        layers: bool = False,
+        canvas_size: tuple[int, int] = (800, 800),
+        fixed_canvas: bool = False,
         show_fullscreen_button: bool = True,
     ):
         if not brush:
@@ -344,6 +349,7 @@ class ImageMask(components.ImageEditor):
             layers=layers,
             canvas_size=canvas_size,
             show_fullscreen_button=show_fullscreen_button,
+            fixed_canvas=fixed_canvas,
         )
 
 
@@ -534,6 +540,7 @@ class Files(components.File):
         elem_classes: list[str] | str | None = None,
         render: bool = True,
         key: int | str | None = None,
+        allow_reordering: bool = False,
     ):
         super().__init__(
             value,
@@ -554,6 +561,7 @@ class Files(components.File):
             elem_classes=elem_classes,
             render=render,
             key=key,
+            allow_reordering=allow_reordering,
         )
 
 
@@ -593,6 +601,8 @@ class Numpy(components.Dataframe):
         wrap: bool = False,
         line_breaks: bool = True,
         column_widths: list[str | int] | None = None,
+        show_row_numbers: bool = False,
+        show_fullscreen_button: bool = False,
     ):
         super().__init__(
             value=value,
@@ -618,6 +628,8 @@ class Numpy(components.Dataframe):
             scale=scale,
             latex_delimiters=latex_delimiters,
             min_width=min_width,
+            show_row_numbers=show_row_numbers,
+            show_fullscreen_button=show_fullscreen_button,
         )
 
 
@@ -657,6 +669,8 @@ class Matrix(components.Dataframe):
         wrap: bool = False,
         line_breaks: bool = True,
         column_widths: list[str | int] | None = None,
+        show_row_numbers: bool = False,
+        show_fullscreen_button: bool = True,
     ):
         super().__init__(
             value=value,
@@ -682,6 +696,8 @@ class Matrix(components.Dataframe):
             scale=scale,
             latex_delimiters=latex_delimiters,
             min_width=min_width,
+            show_row_numbers=show_row_numbers,
+            show_fullscreen_button=show_fullscreen_button,
         )
 
 
@@ -721,6 +737,8 @@ class List(components.Dataframe):
         wrap: bool = False,
         line_breaks: bool = True,
         column_widths: list[str | int] | None = None,
+        show_row_numbers: bool = False,
+        show_fullscreen_button: bool = True,
     ):
         super().__init__(
             value=value,
@@ -746,6 +764,8 @@ class List(components.Dataframe):
             scale=scale,
             latex_delimiters=latex_delimiters,
             min_width=min_width,
+            show_row_numbers=show_row_numbers,
+            show_fullscreen_button=show_fullscreen_button,
         )
 
 

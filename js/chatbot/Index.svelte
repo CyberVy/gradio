@@ -32,6 +32,8 @@
 	export let root: string;
 	export let _selectable = false;
 	export let likeable = false;
+	export let feedback_options: string[] = ["Like", "Dislike"];
+	export let feedback_value: (string | null)[] | null = null;
 	export let show_share_button = false;
 	export let rtl = false;
 	export let show_copy_button = true;
@@ -59,6 +61,7 @@
 		clear_status: LoadingStatus;
 		example_select: SelectData;
 		option_select: SelectData;
+		edit: SelectData;
 		retry: UndoRetryData;
 		undo: UndoRetryData;
 		clear: null;
@@ -79,6 +82,7 @@
 	export let resizeable: boolean;
 	export let min_height: number | string | undefined;
 	export let max_height: number | string | undefined;
+	export let editable: "user" | "all" | null = null;
 	export let placeholder: string | null = null;
 	export let examples: ExampleMessage[] | null = null;
 	export let theme_mode: "system" | "light" | "dark";
@@ -124,6 +128,8 @@
 			i18n={gradio.i18n}
 			selectable={_selectable}
 			{likeable}
+			{feedback_options}
+			{feedback_value}
 			{show_share_button}
 			{show_copy_all_button}
 			value={_value}
@@ -131,6 +137,7 @@
 			display_consecutive_in_same_bubble={group_consecutive_messages}
 			{render_markdown}
 			{theme_mode}
+			{editable}
 			pending_message={loading_status?.status === "pending"}
 			generating={loading_status?.status === "generating"}
 			{rtl}
@@ -150,6 +157,18 @@
 				gradio.dispatch("clear");
 			}}
 			on:copy={(e) => gradio.dispatch("copy", e.detail)}
+			on:edit={(e) => {
+				if (value === null || value.length === 0) return;
+				if (type === "messages") {
+					//@ts-ignore
+					value[e.detail.index].content = e.detail.value;
+				} else {
+					//@ts-ignore
+					value[e.detail.index[0]][e.detail.index[1]] = e.detail.value;
+				}
+				value = value;
+				gradio.dispatch("edit", e.detail);
+			}}
 			{avatar_images}
 			{sanitize_html}
 			{line_breaks}

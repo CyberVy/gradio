@@ -186,6 +186,7 @@ export interface Config {
 	api_prefix?: string;
 	fill_height?: boolean;
 	fill_width?: boolean;
+	pwa?: boolean;
 }
 
 // todo: DRY up types
@@ -253,7 +254,6 @@ export interface Dependency {
 	trigger_mode: "once" | "multiple" | "always_last";
 	final_event: Payload | null;
 	show_api: boolean;
-	zerogpu?: boolean;
 	rendered_in: number | null;
 	connection: "stream" | "sse";
 	time_limit: number;
@@ -331,7 +331,7 @@ export type GradioEvent = {
 export interface Log {
 	log: string;
 	title: string;
-	level: "warning" | "info";
+	level: "warning" | "info" | "success";
 }
 export interface Render {
 	data: {

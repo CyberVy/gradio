@@ -1,5 +1,30 @@
 # @gradio/statustracker
 
+## 0.10.2
+
+### Fixes
+
+- [#10390](https://github.com/gradio-app/gradio/pull/10390) [`9e6eded`](https://github.com/gradio-app/gradio/commit/9e6ededef144f3f1a8ebbc47076b55d60f5b2ef3) - Removes css tag that overrides Gradio theme setting.  Thanks @ericwu09!
+
+## 0.10.1
+
+### Dependency updates
+
+- @gradio/atoms@0.13.1
+- @gradio/icons@0.10.0
+
+## 0.10.0
+
+### Features
+
+- [#10262](https://github.com/gradio-app/gradio/pull/10262) [`f3bedd4`](https://github.com/gradio-app/gradio/commit/f3bedd4011bdfdecc952eb1275a9dd96af3e8d71) - add gr.Success and update windows contributing.  Thanks @not-lain!
+
+### Dependency updates
+
+- @gradio/atoms@0.13.0
+- @gradio/utils@0.10.0
+- @gradio/icons@0.9.0
+
 ## 0.9.7
 
 ### Dependency updates

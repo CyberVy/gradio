@@ -167,6 +167,18 @@
 />
 
 <Story
+	name="Dataframe with zero row count"
+	args={{
+		values: [],
+		headers: ["Narrow", "Wide", "Half"],
+		label: "Test scores",
+		col_count: [0, "dynamic"],
+		row_count: [0, "dynamic"],
+		editable: false
+	}}
+/>
+
+<Story
 	name="Dataframe with dialog interactions"
 	args={{
 		values: [
@@ -192,5 +204,19 @@
 
 		const new_cell = canvas.getAllByRole("cell")[9];
 		userEvent.click(new_cell);
+	}}
+/>
+
+<Story
+	name="Dataframe with fullscreen button"
+	args={{
+		col_count: [3, "dynamic"],
+		row_count: [2, "dynamic"],
+		headers: ["Math", "Reading", "Writing"],
+		values: [
+			[800, 100, 400],
+			[200, 800, 700]
+		],
+		show_fullscreen_button: true
 	}}
 />

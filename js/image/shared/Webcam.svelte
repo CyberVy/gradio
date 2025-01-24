@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from "svelte";
+	import { createEventDispatcher, onDestroy, onMount } from "svelte";
 	import {
 		Camera,
 		Circle,
@@ -198,7 +198,7 @@
 				}
 			};
 			ReaderObj.readAsDataURL(video_blob);
-		} else {
+		} else if (typeof MediaRecorder !== "undefined") {
 			dispatch("start_recording");
 			recorded_blobs = [];
 			let validMimeTypes = ["video/webm", "video/mp4"];
@@ -225,15 +225,21 @@
 
 	let webcam_accessed = false;
 
-	function record_video_or_photo(): void {
+	function record_video_or_photo({
+		destroy
+	}: { destroy?: boolean } = {}): void {
 		if (mode === "image" && streaming) {
 			recording = !recording;
 		}
-		if (mode === "image") {
-			take_picture();
-		} else {
-			take_recording();
+
+		if (!destroy) {
+			if (mode === "image") {
+				take_picture();
+			} else {
+				take_recording();
+			}
 		}
+
 		if (!recording && stream) {
 			dispatch("close_stream");
 			stream.getTracks().forEach((track) => track.stop());
@@ -273,6 +279,12 @@
 		event.stopPropagation();
 		options_open = false;
 	}
+
+	onDestroy(() => {
+		if (typeof window === "undefined") return;
+		record_video_or_photo({ destroy: true });
+		stream?.getTracks().forEach((track) => track.stop());
+	});
 </script>
 
 <div class="wrap">
@@ -300,7 +312,7 @@
 	{:else}
 		<div class="button-wrap">
 			<button
-				on:click={record_video_or_photo}
+				on:click={() => record_video_or_photo()}
 				aria-label={mode === "image" ? "capture photo" : "start recording"}
 			>
 				{#if mode === "video" || streaming}

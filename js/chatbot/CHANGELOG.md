@@ -1,5 +1,86 @@
 # @gradio/chatbot
 
+## 0.22.1
+
+### Fixes
+
+- [#10405](https://github.com/gradio-app/gradio/pull/10405) [`92dda15`](https://github.com/gradio-app/gradio/commit/92dda15f6d1c71929d3bdca1910734309db72458) - Hide the waveform when playing recorded audio if `show_recording_waveform` is `False`.  Thanks @abidlabs!
+
+## 0.22.0
+
+### Features
+
+- [#10392](https://github.com/gradio-app/gradio/pull/10392) [`4d47e4b`](https://github.com/gradio-app/gradio/commit/4d47e4b4e2f07d4dd5b600f7d9180c7ad3e67a1f) - Add a `log` parameter to Chatbot metadata that allows displaying `str` content next to the thought title.  Thanks @abidlabs!
+
+### Fixes
+
+- [#10404](https://github.com/gradio-app/gradio/pull/10404) [`9dc5d15`](https://github.com/gradio-app/gradio/commit/9dc5d157aaf002f7699d3b2c1652f49d47e53e80) - Tweak behavior related to the `status` of `gr.Chatbot` thought messages.  Thanks @abidlabs!
+
+### Dependency updates
+
+- @gradio/upload@0.14.6
+- @gradio/video@0.13.2
+- @gradio/wasm@0.17.0
+- @gradio/statustracker@0.10.2
+- @gradio/image@0.20.2
+- @gradio/gallery@0.15.2
+- @gradio/plot@0.9.7
+
+## 0.21.0
+
+### Features
+
+- [#10323](https://github.com/gradio-app/gradio/pull/10323) [`391a4d0`](https://github.com/gradio-app/gradio/commit/391a4d09a90406b768eee30e1c12a0bc84fc27a2) - Add `.previous_value` to `gr.EditData`.  Thanks @abidlabs!
+- [#10305](https://github.com/gradio-app/gradio/pull/10305) [`be40307`](https://github.com/gradio-app/gradio/commit/be40307d1d11421e01bf91fa5e05ec4ab97b09d8) - Add support for thinking LLMs directly in `gr.ChatInterface`.  Thanks @abidlabs!
+- [#10226](https://github.com/gradio-app/gradio/pull/10226) [`58b8391`](https://github.com/gradio-app/gradio/commit/58b839196e17776cbd0d48997905496f7746d31f) - Improve tool UI and support nested thoughts.  Thanks @hannahblair!
+
+### Dependency updates
+
+- @gradio/video@0.13.1
+- @gradio/atoms@0.13.1
+- @gradio/statustracker@0.10.1
+- @gradio/client@1.10.0
+- @gradio/icons@0.10.0
+- @gradio/upload@0.14.5
+- @gradio/gallery@0.15.1
+- @gradio/plot@0.9.6
+- @gradio/image@0.20.1
+
+## 0.20.1
+
+### Dependency updates
+
+- @gradio/gallery@0.15.0
+
+## 0.20.0
+
+### Features
+
+- [#10203](https://github.com/gradio-app/gradio/pull/10203) [`c3a9e64`](https://github.com/gradio-app/gradio/commit/c3a9e647381f787085662828747e6ac61f8a0c01) - Allow editing chatbot messages.  Thanks @aliabid94!
+- [#10272](https://github.com/gradio-app/gradio/pull/10272) [`a1f2649`](https://github.com/gradio-app/gradio/commit/a1f2649586752a013fb4d36b83d5fea2e137bb81) - Chat Interface flagging and chatbot feedback.  Thanks @aliabid94!
+- [#10225](https://github.com/gradio-app/gradio/pull/10225) [`f0cf3b7`](https://github.com/gradio-app/gradio/commit/f0cf3b789a4ebb5ac2e33243fea80c6c6f080d42) - Dataframe support in Chatbot.  Thanks @dawoodkhan82!
+- [#10292](https://github.com/gradio-app/gradio/pull/10292) [`f2bd72f`](https://github.com/gradio-app/gradio/commit/f2bd72f9ef23552f0c6018396320eca9baef04f5) - Reset flagged values when switching conversations in chat history.  Thanks @abidlabs!
+- [#10191](https://github.com/gradio-app/gradio/pull/10191) [`5ce2832`](https://github.com/gradio-app/gradio/commit/5ce28324971e974ae24dc9a229b2160793140fb2) - Support saving chat history in `gr.ChatInterface`.  Thanks @abidlabs!
+
+### Fixes
+
+- [#10214](https://github.com/gradio-app/gradio/pull/10214) [`501adef`](https://github.com/gradio-app/gradio/commit/501adefd0c3d5769055ef2156c85e586eb60bf84) - Some agent low-hanging issues.  Thanks @freddyaboulton!
+
+### Dependency updates
+
+- @gradio/atoms@0.13.0
+- @gradio/utils@0.10.0
+- @gradio/gallery@0.14.1
+- @gradio/markdown-code@0.3.0
+- @gradio/upload@0.14.4
+- @gradio/client@1.9.0
+- @gradio/icons@0.9.0
+- @gradio/statustracker@0.10.0
+- @gradio/wasm@0.16.0
+- @gradio/plot@0.9.5
+- @gradio/image@0.20.0
+- @gradio/video@0.13.0
+
 ## 0.19.0
 
 ### Features

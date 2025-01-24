@@ -1,5 +1,35 @@
 # @self/spa
 
+## 0.5.0
+
+### Features
+
+- [#10341](https://github.com/gradio-app/gradio/pull/10341) [`b0cf92f`](https://github.com/gradio-app/gradio/commit/b0cf92f03ba29f29fa540de8c5803a7263df0106) - PWA icon customization.  Thanks @whitphx!
+
+### Dependency updates
+
+- @gradio/wasm@0.17.0
+- @gradio/core@0.7.0
+
+## 0.4.0
+
+### Dependency updates
+
+- @gradio/client@1.10.0
+- @gradio/core@0.6.1
+
+## 0.4.0
+
+### Features
+
+- [#10187](https://github.com/gradio-app/gradio/pull/10187) [`64d1864`](https://github.com/gradio-app/gradio/commit/64d1864f8fb6f2d0b274fcf7bd47bdb1f6a77980) - `manifest json` for PWA.  Thanks @whitphx!
+
+### Dependency updates
+
+- @gradio/client@1.9.0
+- @gradio/wasm@0.16.0
+- @gradio/core@0.6.0
+
 ## 0.3.0
 
 ### Dependency updates

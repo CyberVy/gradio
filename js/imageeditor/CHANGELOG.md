@@ -1,5 +1,63 @@
 # @gradio/imageeditor
 
+## 0.12.4
+
+### Features
+
+- [#10370](https://github.com/gradio-app/gradio/pull/10370) [`71c8b8a`](https://github.com/gradio-app/gradio/commit/71c8b8abbfae0e47eb46561b0104bd452e5dffe8) - Clear Image Editor Value with None.  Thanks @freddyaboulton!
+- [#10416](https://github.com/gradio-app/gradio/pull/10416) [`3c2e12b`](https://github.com/gradio-app/gradio/commit/3c2e12b5ba52441f45565ae8e14cea46ea5b5b2c) - Fix ImageEditor Cropping - Cropping now crops the background image instead of the image + canvas.  Thanks @freddyaboulton!
+
+## 0.12.3
+
+### Fixes
+
+- [#10357](https://github.com/gradio-app/gradio/pull/10357) [`43e7cce`](https://github.com/gradio-app/gradio/commit/43e7cce2bd8ddd274fcba890bfeaa7ead7f32434) - Fix ImageEditor Size Issues.  Thanks @freddyaboulton!
+
+### Dependency updates
+
+- @gradio/upload@0.14.6
+- @gradio/wasm@0.17.0
+- @gradio/statustracker@0.10.2
+- @gradio/image@0.20.2
+
+## 0.12.2
+
+### Fixes
+
+- [#10308](https://github.com/gradio-app/gradio/pull/10308) [`3543418`](https://github.com/gradio-app/gradio/commit/354341826a629d06640ce3ec5e5881bcccd6e339) - ImageEditor: Trigger input event even if change event not defined.  Thanks @freddyaboulton!
+
+### Dependency updates
+
+- @gradio/atoms@0.13.1
+- @gradio/statustracker@0.10.1
+- @gradio/client@1.10.0
+- @gradio/icons@0.10.0
+- @gradio/upload@0.14.5
+- @gradio/image@0.20.1
+
+## 0.12.1
+
+### Fixes
+
+- [#10306](https://github.com/gradio-app/gradio/pull/10306) [`9fc988e`](https://github.com/gradio-app/gradio/commit/9fc988ebaf4bea24b71308922bb1889f1d3f4f6e) - Fix bug where ImageEditor always sends empty layers list to the backend.  Thanks @freddyaboulton!
+
+## 0.12.0
+
+### Features
+
+- [#10192](https://github.com/gradio-app/gradio/pull/10192) [`4fc7fb7`](https://github.com/gradio-app/gradio/commit/4fc7fb777c42af537e4af612423fa44029657d41) - Ensure components can be remounted with their previous data.  Thanks @pngwn!
+
+### Dependency updates
+
+- @gradio/atoms@0.13.0
+- @gradio/utils@0.10.0
+- @gradio/upload@0.14.4
+- @gradio/client@1.9.0
+- @gradio/icons@0.9.0
+- @gradio/statustracker@0.10.0
+- @gradio/wasm@0.16.0
+- @gradio/image@0.20.0
+
 ## 0.11.11
 
 ### Dependency updates

@@ -9,12 +9,14 @@
 <Template let:args>
 	<Tabs {...args}>
 		<TabItem
+			order={0}
 			id="tab-1"
 			label="Image Tab"
 			gradio={undefined}
 			visible
 			interactive
 			elem_classes={["editor-tabitem"]}
+			scale={0}
 		>
 			<img
 				style="width: 200px;"
@@ -23,22 +25,26 @@
 			/>
 		</TabItem>
 		<TabItem
+			order={1}
 			id="tab-2"
 			label="Hidden Tab"
 			gradio={undefined}
 			visible={false}
 			interactive
 			elem_classes={["editor-tabitem"]}
+			scale={0}
 		>
 			Secret Tab
 		</TabItem>
 		<TabItem
+			order={2}
 			id="tab-3"
 			label="Visible Tab"
 			gradio={undefined}
 			visible
 			interactive
 			elem_classes={["editor-tabitem"]}
+			scale={0}
 		>
 			Visible Tab
 		</TabItem>

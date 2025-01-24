@@ -19,7 +19,6 @@ from typing import (
 
 from gradio_client import utils as client_utils
 from gradio_client.documentation import document
-from pydantic import Field
 from typing_extensions import NotRequired, TypedDict
 
 from gradio import utils
@@ -33,13 +32,41 @@ from gradio.events import Events
 from gradio.exceptions import Error
 
 
+@document()
 class MetadataDict(TypedDict):
-    title: Union[str, None]
+    """
+    A typed dictionary to represent metadata for a message in the Chatbot component. An
+    instance of this dictionary is used for the `metadata` field in a ChatMessage when
+    the chat message should be displayed as a thought.
+    Parameters:
+        title: The title of the "thought" message. Required if the message is to be displayed as a thought.
+        id: The ID of the message. Only used for nested thoughts. Nested thoughts can be nested by setting the parent_id to the id of the parent thought.
+        parent_id: The ID of the parent message. Only used for nested thoughts.
+        log: A string message to display next to the thought title in a subdued font.
+        duration: The duration of the message in seconds. Appears next to the thought title in a subdued font inside a parentheses.
+        status: The status of the message. If "pending", a spinner icon appears next to the thought title. If "done", the thought accordion becomes closed. If no value is provided, the thought accordion is open and no spinner is displayed.
+    """
+
+    title: NotRequired[str]
+    id: NotRequired[int | str]
+    parent_id: NotRequired[int | str]
+    log: NotRequired[str]
+    duration: NotRequired[float]
+    status: NotRequired[Literal["pending", "done"]]
 
 
-class Option(TypedDict):
-    label: NotRequired[str]
+@document()
+class OptionDict(TypedDict):
+    """
+    A typed dictionary to represent an option in a ChatMessage. A list of these
+    dictionaries is used for the `options` field in a ChatMessage.
+    Parameters:
+        value: The value to return when the option is selected.
+        label: The text to display in the option, if different from the value.
+    """
+
     value: str
+    label: NotRequired[str]
 
 
 class FileDataDict(TypedDict):
@@ -56,7 +83,7 @@ class MessageDict(TypedDict):
     content: str | FileDataDict | tuple | Component
     role: Literal["user", "assistant", "system"]
     metadata: NotRequired[MetadataDict]
-    options: NotRequired[list[Option]]
+    options: NotRequired[list[OptionDict]]
 
 
 class FileMessage(GradioModel):
@@ -80,15 +107,11 @@ class ChatbotDataTuples(GradioRootModel):
     ]
 
 
-class Metadata(GradioModel):
-    title: Optional[str] = None
-
-
 class Message(GradioModel):
     role: str
-    metadata: Metadata = Field(default_factory=Metadata)
+    metadata: Optional[MetadataDict] = None
     content: Union[str, FileMessage, ComponentMessage]
-    options: Optional[list[Option]] = None
+    options: Optional[list[OptionDict]] = None
 
 
 class ExampleMessage(TypedDict):
@@ -104,12 +127,22 @@ class ExampleMessage(TypedDict):
     ]  # list of file paths or URLs to be added to chatbot when example is clicked
 
 
+@document()
 @dataclass
 class ChatMessage:
-    role: Literal["user", "assistant", "system"]
+    """
+    A dataclass that represents a message in the Chatbot component (with type="messages"). The only required field is `content`. The value of `gr.Chatbot` is a list of these dataclasses.
+    Parameters:
+        content: The content of the message. Can be a string or a Gradio component.
+        role: The role of the message, which determines the alignment of the message in the chatbot. Can be "user", "assistant", or "system". Defaults to "assistant".
+        metadata: The metadata of the message, which is used to display intermediate thoughts / tool usage. Should be a dictionary with the following keys: "title" (required to display the thought), and optionally: "id" and "parent_id" (to nest thoughts), "duration" (to display the duration of the thought), "status" (to display the status of the thought).
+        options: The options of the message. A list of Option objects, which are dictionaries with the following keys: "label" (the text to display in the option), and optionally "value" (the value to return when the option is selected if different from the label).
+    """
+
     content: str | FileData | Component | FileDataDict | tuple | list
-    metadata: MetadataDict | Metadata = field(default_factory=Metadata)
-    options: Optional[list[Option]] = None
+    role: Literal["user", "assistant", "system"] = "assistant"
+    metadata: MetadataDict = field(default_factory=MetadataDict)
+    options: list[OptionDict] = field(default_factory=list)
 
 
 class ChatbotDataMessages(GradioRootModel):
@@ -161,6 +194,7 @@ class Chatbot(Component):
         Events.option_select,
         Events.clear,
         Events.copy,
+        Events.edit,
     ]
 
     def __init__(
@@ -185,6 +219,7 @@ class Chatbot(Component):
         resizeable: bool = False,
         max_height: int | str | None = None,
         min_height: int | str | None = None,
+        editable: Literal["user", "all"] | None = None,
         latex_delimiters: list[dict[str, str | bool]] | None = None,
         rtl: bool = False,
         show_share_button: bool | None = None,
@@ -192,6 +227,8 @@ class Chatbot(Component):
         avatar_images: tuple[str | Path | None, str | Path | None] | None = None,
         sanitize_html: bool = True,
         render_markdown: bool = True,
+        feedback_options: list[str] | tuple[str, ...] | None = ("Like", "Dislike"),
+        feedback_value: Sequence[str | None] | None = None,
         bubble_full_width=None,
         line_breaks: bool = True,
         layout: Literal["panel", "bubble"] | None = None,
@@ -203,7 +240,7 @@ class Chatbot(Component):
     ):
         """
         Parameters:
-            value: Default list of messages to show in chatbot, where each message is of the format {"role": "user", "content": "Help me."}. Role can be one of "user", "assistant", or "system". Content should be either text, or media passed as a Gradio component, e.g. {"content": gr.Image("lion.jpg")}. If callable, the function will be called whenever the app loads to set the initial value of the component.
+            value: Default list of messages to show in chatbot, where each message is of the format {"role": "user", "content": "Help me."}. Role can be one of "user", "assistant", or "system". Content should be either text, or media passed as a Gradio component, e.g. {"content": gr.Image("lion.jpg")}. If a function is provided, the function will be called each time the app loads to set the initial value of this component.
             type: The format of the messages passed into the chat history parameter of `fn`. If "messages", passes the value as a list of dictionaries with openai-style "role" and "content" keys. The "content" key's value should be one of the following - (1) strings in valid Markdown (2) a dictionary with a "path" key and value corresponding to the file to display or (3) an instance of a Gradio component. At the moment Image, Plot, Video, Gallery, Audio, and HTML are supported. The "role" key should be one of 'user' or 'assistant'. Any other roles will not be displayed in the output. If this parameter is 'tuples', expects a `list[list[str | None | tuple]]`, i.e. a list of lists. The inner list should have 2 elements: the user message and the response message, but this format is deprecated.
             label: the label for this component. Appears above the component and is also used as the header if there are a table of examples for this component. If None and used in a `gr.Interface`, the label will be the name of the parameter this component is assigned to.
             every: Continously calls `value` to recalculate it if `value` is a function (has no effect otherwise). Can provide a Timer whose tick resets `value`, or a float that provides the regular interval for the reset Timer.
@@ -222,6 +259,7 @@ class Chatbot(Component):
             resizeable: If True, the component will be resizeable by the user.
             max_height: The maximum height of the component, specified in pixels if a number is passed, or in CSS units if a string is passed. If messages exceed the height, the component will scroll. If messages are shorter than the height, the component will shrink to fit the content. Will not have any effect if `height` is set and is smaller than `max_height`.
             min_height: The minimum height of the component, specified in pixels if a number is passed, or in CSS units if a string is passed. If messages exceed the height, the component will expand to fit the content. Will not have any effect if `height` is set and is larger than `min_height`.
+            editable: Allows user to edit messages in the chatbot. If set to "user", allows editing of user messages. If set to "all", allows editing of assistant messages as well.
             latex_delimiters: A list of dicts of the form {"left": open delimiter (str), "right": close delimiter (str), "display": whether to display in newline (bool)} that will be used to render LaTeX expressions. If not provided, `latex_delimiters` is set to `[{ "left": "$$", "right": "$$", "display": True }]`, so only expressions enclosed in $$ delimiters will be rendered as LaTeX, and in a new line. Pass in an empty list to disable LaTeX rendering. For more information, see the [KaTeX documentation](https://katex.org/docs/autorender.html).
             rtl: If True, sets the direction of the rendered text to right-to-left. Default is False, which renders text left-to-right.
             show_share_button: If True, will show a share icon in the corner of the component that allows user to share outputs to Hugging Face Spaces Discussions. If False, icon does not appear. If set to None (default behavior), then the icon appears if this Gradio app is launched on Spaces, but not otherwise.
@@ -229,6 +267,8 @@ class Chatbot(Component):
             avatar_images: Tuple of two avatar image paths or URLs for user and bot (in that order). Pass None for either the user or bot image to skip. Must be within the working directory of the Gradio app or an external URL.
             sanitize_html: If False, will disable HTML sanitization for chatbot messages. This is not recommended, as it can lead to security vulnerabilities.
             render_markdown: If False, will disable Markdown rendering for chatbot messages.
+            feedback_options: A list of strings representing the feedback options that will be displayed to the user. The exact case-sensitive strings "Like" and "Dislike" will render as thumb icons, but any other choices will appear under a separate flag icon.
+            feedback_value: A list of strings representing the feedback state for entire chat. Only works when type="messages". Each entry in the list corresponds to that assistant message, in order, and the value is the feedback given (e.g. "Like", "Dislike", or any custom feedback option) or None if no feedback was given for that message.
             bubble_full_width: Deprecated.
             line_breaks: If True (default), will enable Github-flavored Markdown line breaks in chatbot messages. If False, single new lines will be ignored. Only applies if `render_markdown` is True.
             layout: If "panel", will display the chatbot in a llm style layout. If "bubble", will display the chatbot with message bubbles, with the user and bot messages on alterating sides. Will default to "bubble".
@@ -260,6 +300,7 @@ class Chatbot(Component):
         self.resizeable = resizeable
         self.max_height = max_height
         self.min_height = min_height
+        self.editable = editable
         self.rtl = rtl
         self.group_consecutive_messages = group_consecutive_messages
         if latex_delimiters is None:
@@ -283,6 +324,8 @@ class Chatbot(Component):
         self.layout = layout
         self.show_copy_all_button = show_copy_all_button
         self.allow_file_downloads = allow_file_downloads
+        self.feedback_options = feedback_options
+        self.feedback_value = feedback_value
         super().__init__(
             label=label,
             every=every,

@@ -58,8 +58,10 @@
 		margin-right: var(--spacing-xxs);
 	}
 
-	.icon-button-wrapper :global(a.download-link:not(:last-child)::after),
-	.icon-button-wrapper :global(button:not(:last-child)::after) {
+	.icon-button-wrapper
+		:global(a.download-link:not(:last-child):not(.no-border *)::after),
+	.icon-button-wrapper
+		:global(button:not(:last-child):not(.no-border *)::after) {
 		content: "";
 		position: absolute;
 		right: -4.5px;

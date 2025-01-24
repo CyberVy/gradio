@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from gradio_client.documentation import document
@@ -29,8 +30,8 @@ class Button(Component):
         every: Timer | float | None = None,
         inputs: Component | Sequence[Component] | set[Component] | None = None,
         variant: Literal["primary", "secondary", "stop", "huggingface"] = "secondary",
-        size: Literal["sm", "lg"] | None = None,
-        icon: str | None = None,
+        size: Literal["sm", "md", "lg"] = "lg",
+        icon: str | Path | None = None,
         link: str | None = None,
         visible: bool = True,
         interactive: bool = True,
@@ -43,11 +44,11 @@ class Button(Component):
     ):
         """
         Parameters:
-            value: default text for the button to display. If callable, the function will be called whenever the app loads to set the initial value of the component.
+            value: default text for the button to display. If a function is provided, the function will be called each time the app loads to set the initial value of this component.
             every: continuously calls `value` to recalculate it if `value` is a function (has no effect otherwise). Can provide a Timer whose tick resets `value`, or a float that provides the regular interval for the reset Timer.
             inputs: components that are used as inputs to calculate `value` if `value` is a function (has no effect otherwise). `value` is recalculated any time the inputs change.
             variant: sets the background and text color of the button. Use 'primary' for main call-to-action buttons, 'secondary' for a more subdued style, 'stop' for a stop button, 'huggingface' for a black background with white text, consistent with Hugging Face's button styles.
-            size: size of the button. Can be "sm" or "lg".
+            size: size of the button. Can be "sm", "md", or "lg".
             icon: URL or path to the icon file to display within the button. If None, no icon will be displayed.
             link: URL to open when the button is clicked. If None, no link will be used.
             visible: if False, component will be hidden.

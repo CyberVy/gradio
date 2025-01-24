@@ -1,5 +1,39 @@
 # @gradio/dataset
 
+## 0.4.2
+
+### Fixes
+
+- [#10369](https://github.com/gradio-app/gradio/pull/10369) [`eb85edf`](https://github.com/gradio-app/gradio/commit/eb85edf4b27b33038c0923387d6d1a6f57a73980) - Quick fix: 0 is ignored Slider/Number issue.  Thanks @dawoodkhan82!
+
+### Dependency updates
+
+- @gradio/upload@0.14.6
+- @gradio/textbox@0.10.2
+
+## 0.4.1
+
+### Dependency updates
+
+- @gradio/atoms@0.13.1
+- @gradio/client@1.10.0
+- @gradio/upload@0.14.5
+- @gradio/textbox@0.10.1
+
+## 0.4.0
+
+### Features
+
+- [#10191](https://github.com/gradio-app/gradio/pull/10191) [`5ce2832`](https://github.com/gradio-app/gradio/commit/5ce28324971e974ae24dc9a229b2160793140fb2) - Support saving chat history in `gr.ChatInterface`.  Thanks @abidlabs!
+
+### Dependency updates
+
+- @gradio/atoms@0.13.0
+- @gradio/utils@0.10.0
+- @gradio/upload@0.14.4
+- @gradio/client@1.9.0
+- @gradio/textbox@0.10.0
+
 ## 0.3.11
 
 ### Dependency updates

@@ -2,6 +2,7 @@
 	import { BaseCode as Code, BaseWidget as CodeWidget } from "@gradio/code";
 	import { BaseTabs as Tabs, type Tab } from "@gradio/tabs";
 	import { BaseTabItem as TabItem } from "@gradio/tabitem";
+	import { Toast as ErrorModal } from "@gradio/statustracker";
 	import Slider from "../Slider.svelte";
 	import Fullscreen from "../icons/Fullscreen.svelte";
 	import Close from "../icons/Close.svelte";
@@ -14,14 +15,28 @@
 	import SYSTEM_PROMPT from "$lib/json/system_prompt.json";
 	import WHEEL from "$lib/json/wheel.json";
 
-	let generated = true;
+	interface CodeState {
+		status: "idle" | "generating" | "error" | "regenerating";
+		code_edited: boolean;
+		code_exists: boolean;
+		model_info: string;
+		generation_error: string;
+	}
 
-	let current_code = false;
-	let compare = false;
+	let code_state: CodeState = {
+		status: "idle",
+		code_edited: true,
+		code_exists: false,
+		model_info: "",
+		generation_error: ""
+	};
+
+	$: code_state;
+
+	console.log(code_state);
 
 	const workerUrl = "https://playground-worker.pages.dev/api/generate";
 	// const workerUrl = "http://localhost:5173/api/generate";
-	let model_info = "";
 
 	let abortController: AbortController | null = null;
 
@@ -43,9 +58,7 @@
 		});
 
 		if (response.status == 429) {
-			generation_error = "Too busy... :( Please try again later.";
-			await new Promise((resolve) => setTimeout(resolve, 4000));
-			generation_error = "";
+			code_state.generation_error = "Too busy... :( Please try again later.";
 			return;
 		}
 
@@ -76,14 +89,16 @@
 						try {
 							const parsed = JSON.parse(data);
 							if (parsed.model) {
-								model_info = parsed.model;
-								console.log("Model used:", model_info);
+								code_state.model_info = parsed.model;
+								console.log("Model used:", code_state.model_info);
 							} else if (parsed.error) {
 								console.log(parsed.error);
-								generation_error = "Failed to fetch...";
-								await new Promise((resolve) => setTimeout(resolve, 2000));
-								generation_error = "";
-								// }
+								if (parsed.error == "Existing code is too long") {
+									code_state.generation_error = "Existing code is too long";
+									return;
+								} else {
+									code_state.generation_error = "Failed to fetch...";
+								}
 							} else if (parsed.info) {
 								console.log(parsed.info);
 							} else if (parsed.requirements) {
@@ -101,11 +116,19 @@
 		}
 	}
 
-	async function generate_code(query: string, demo_name: string) {
-		generated = false;
+	async function generate_code(
+		query: string,
+		demo_name: string,
+		regeneration_run = false
+	) {
+		if (regeneration_run) {
+			code_state.status = "regenerating";
+		} else {
+			code_state.status = "generating";
+		}
 		let out = "";
 
-		if (current_code) {
+		if (code_state.code_exists) {
 			query = "PROMPT: " + query;
 			query +=
 				"\n\nHere is the existing code that either you or the user has written. If it's relevant to the prompt, use it for context. If it's not relevant, ignore it.\n Existing Code: \n\n" +
@@ -117,7 +140,7 @@
 		let queried_index =
 			demos.findIndex((demo) => demo.name === demo_name) ?? demos[0];
 
-		let code_to_compare = demos[queried_index].code;
+		code_to_compare = demos[queried_index].code;
 
 		abortController = new AbortController();
 
@@ -132,9 +155,7 @@
 				const content = chunk.choices[0].delta.content;
 				if (content) {
 					out += content;
-					demos[queried_index].code =
-						out ||
-						"# Describe your app above, and the LLM will generate the code here.";
+					demos[queried_index].code = out;
 					demos[queried_index].code = demos[queried_index].code.replaceAll(
 						"```python\n",
 						""
@@ -154,7 +175,10 @@
 			}
 		}
 
-		generated = true;
+		code_state.status = "idle";
+		code_state.code_edited = false;
+		user_query = "";
+
 		if (selected_demo.name === demo_name) {
 			highlight_changes(code_to_compare, demos[queried_index].code);
 		}
@@ -165,7 +189,10 @@
 		if (abortController) {
 			abortController.abort();
 		}
-		generated = true;
+		code_state.generation_error = "Cancelled!";
+		code_state.status = "idle";
+		app_error = null;
+		selected_demo.code = code_to_compare;
 	}
 
 	let user_query: string;
@@ -173,9 +200,9 @@
 	function handle_user_query_key_down(e: KeyboardEvent): void {
 		if (e.key === "Enter") {
 			run_as_update = false;
-			suspend_and_resume_auto_run(() =>
-				generate_code(user_query, selected_demo.name)
-			);
+			suspend_and_resume_auto_run(() => {
+				generate_code(user_query, selected_demo.name);
+			});
 		}
 	}
 
@@ -197,7 +224,7 @@
 
 	function clear_code() {
 		selected_demo.code = "";
-		current_code = false;
+		code_state.code_exists = false;
 	}
 
 	demos.push(blank_demo);
@@ -241,6 +268,13 @@
 			.filter((r) => r !== "");
 	}
 
+	let lite_element;
+
+	const debounced_detect_error = debounce(detect_app_error, 100);
+
+	let stderr = "";
+	let init_code_run_error = "";
+
 	onMount(async () => {
 		try {
 			await loadScript(WHEEL.gradio_lite_url + "/dist/lite.js");
@@ -270,10 +304,42 @@
 					selected_demo.requirements.concat(packageNames);
 			});
 
+			controller.addEventListener("stderr", (event) => {
+				stderr = stderr + event.detail;
+			});
+			controller.addEventListener("init-code-run-error", (event) => {
+				init_code_run_error = init_code_run_error + event.detail;
+			});
+
 			mounted = true;
 		} catch (error) {
 			console.error("Error loading Gradio Lite:", error);
 		}
+
+		const observer = new MutationObserver((mutations) => {
+			mutations.forEach((mutation) => {
+				if (
+					(mutation.type === "childList" &&
+						(mutation.addedNodes.length > 0 ||
+							mutation.removedNodes.length > 0)) ||
+					mutation.type === "characterData"
+				) {
+					debounced_detect_error();
+					// detect_app_error();
+				}
+			});
+		});
+
+		observer.observe(lite_element, {
+			childList: true, // Watch for changes in child elements
+			subtree: true, // Watch all descendants, not just direct children
+			characterData: false, // Don't watch for text content changes
+			attributes: true // Don't watch for attribute changes
+		});
+
+		return () => {
+			observer.disconnect(); // Cleanup on component destruction
+		};
 	});
 
 	let copied_link = false;
@@ -317,6 +383,9 @@
 	let run_as_update = true;
 	$: if (mounted && run_as_update) {
 		debounced_run_code && debounced_run_code(code);
+		stderr = "";
+		init_code_run_error = "";
+		app_error = null;
 	}
 	$: if (mounted && run_as_update) {
 		debounced_install &&
@@ -390,9 +459,9 @@
 		shared = false;
 	}
 	$: if (selected_demo.code !== "") {
-		current_code = true;
+		code_state.code_exists = true;
 	} else {
-		current_code = false;
+		code_state.code_exists = false;
 	}
 
 	function create_spaces_url() {
@@ -451,19 +520,6 @@
 		return launch_code.replace(pattern, replacement);
 	};
 
-	let old_answer = "";
-
-	$: if (compare && browser) {
-		if (
-			selected_demo.code !==
-			"# Describe your app above, and the LLM will generate the code here."
-		) {
-			highlight_changes(old_answer, selected_demo.code);
-			old_answer = selected_demo.code;
-			compare = false;
-		}
-	}
-
 	const TABS: Tab[] = [
 		{
 			label: "Code",
@@ -506,9 +562,72 @@
 
 	$: setInterval(cycle_placeholder, 5000);
 
-	let generation_error = "";
+	$: if (code_state.generation_error) {
+		setTimeout(() => {
+			code_state.generation_error = "";
+		}, 4000);
+	}
 
-	$: generation_error;
+	let app_error: string | null = "";
+
+	function detect_app_error() {
+		if (document) {
+			if (!document.querySelector(".loading")) {
+				if (document.querySelector("div .error-name")) {
+					app_error = document.querySelector(".error-name").textContent;
+				} else if (stderr) {
+					app_error = stderr;
+					stderr = "";
+				} else if (init_code_run_error) {
+					app_error = init_code_run_error;
+					init_code_run_error = "";
+				} else {
+					app_error = null;
+				}
+			}
+		}
+		if (
+			app_error &&
+			app_error.includes(
+				"UserWarning: only soft file lock is available  from filelock import BaseFileLock, FileLock, SoftFileLock, Timeout"
+			)
+		) {
+			app_error = null;
+		}
+		if (app_error) {
+			code_state.status = "error";
+		}
+	}
+
+	$: app_error;
+
+	let error_prompt;
+
+	let auto_regenerate_user_toggle = true;
+
+	$: auto_regenerate_user_toggle;
+
+	async function regenerate_on_error(app_error) {
+		if (
+			code_state.status === "error" &&
+			auto_regenerate_user_toggle &&
+			app_error &&
+			!code_state.code_edited
+		) {
+			user_query = app_error;
+			error_prompt = `There's an error when I run the existing code: ${app_error}`;
+			await generate_code(error_prompt, selected_demo.name, true);
+		}
+	}
+
+	$: regenerate_on_error(app_error);
+
+	$: if (app_error && !user_query) {
+		user_query = app_error;
+	}
+
+	let code_to_compare = code;
+	$: code_to_compare;
 </script>
 
 <svelte:head>
@@ -576,6 +695,9 @@
 										lines={10}
 										readonly={false}
 										dark_mode={false}
+										on:change={(e) => {
+											code_state.code_edited = true;
+										}}
 									/>
 								</div>
 							</TabItem>
@@ -606,14 +728,50 @@
 						</Tabs>
 					</div>
 
-					<div class="mr-2 items-center -mt-7">
-						{#if generation_error}
-							<div
-								class="pl-2 relative z-10 bg-red-100 border border-red-200 px-2 my-1 rounded-lg text-red-800 w-fit text-xs float-right"
+					<div class="mr-2 items-end flex flex-row -mt-7">
+						<div class="flex-grow">
+							<label
+								class="my-1 pl-2 relative z-10 bg-white float-left flex items-center transition-all duration-200 cursor-pointer font-normal text-sm leading-6"
 							>
-								{generation_error}
+								<input
+									bind:checked={auto_regenerate_user_toggle}
+									type="checkbox"
+									name="test"
+									data-testid="checkbox"
+									class=""
+								/>
+								<span class="text-gray-600 text-xs"
+									><span class="font-semibold">Agent Mode</span>: Auto-fix
+									errors in generated code</span
+								>
+							</label>
+						</div>
+
+						{#if code_state.generation_error}
+							<div
+								class="my-2 z-10 text-xs float-right w-fit"
+								style="color-scheme: light"
+							>
+								<ErrorModal
+									messages={[
+										{
+											type: "error",
+											title: "Error",
+											message: code_state.generation_error,
+											id: 1,
+											duration: 4,
+											visible: true
+										}
+									]}
+								/>
 							</div>
-						{:else if current_code}
+						{:else if code_state.status === "regenerating"}
+							<div
+								class="pl-2 relative z-10 bg-purple-100 border border-purple-200 px-2 my-1 rounded-lg text-purple-800 w-fit text-xs float-right"
+							>
+								Regenerating to fix error
+							</div>
+						{:else if code_state.code_exists}
 							<div
 								class="pl-2 relative z-10 bg-white flex items-center float-right"
 							>
@@ -636,25 +794,37 @@
 							<div
 								class="pl-2 relative z-10 bg-white flex items-center float-right"
 							>
-								<p class="text-gray-600 my-1 text-xs">
-									<span style="font-weight: 500">Note:</span> This is still an
-									<span style="font-weight: 500">experimental</span> feature. The
-									generated code may be incorrect.
-								</p>
+								<p class="text-gray-600 my-1 text-xs"></p>
 							</div>
 						{/if}
 					</div>
 
 					<div class="search-bar border-t">
-						{#if !generated}
+						{#if code_state.status === "regenerating"}
+							<div class="loader-purple"></div>
+						{:else if code_state.status === "generating"}
 							<div class="loader"></div>
+						{:else if code_state.status === "error"}
+							<span style="color: transparent; text-shadow: 0 0 0 purple;"
+								>✨</span
+							>
 						{:else}
 							✨
 						{/if}
 						<input
 							bind:value={user_query}
-							on:keydown={handle_user_query_key_down}
-							placeholder={current_code
+							on:keydown={(e) => {
+								handle_user_query_key_down(e);
+								if (code_state.status === "error") {
+									user_query = "";
+									app_error = null;
+									code_state.status = "idle";
+								}
+							}}
+							on:change={(e) => {
+								app_error = null;
+							}}
+							placeholder={code_state.code_exists
 								? update_placeholders[current_placeholder_index]
 								: generate_placeholders[current_placeholder_index]}
 							autocomplete="off"
@@ -664,31 +834,41 @@
 							spellcheck="false"
 							type="search"
 							id="user-query"
-							class:grayed={!generated}
+							class:grayed={code_state.status === "generating"}
 							autofocus={true}
 						/>
-						{#if generated}
+						{#if code_state.status === "error"}
+							<button
+								on:click={async () => {
+									error_prompt = `There's an error when I run the existing code: ${app_error}`;
+									await generate_code(error_prompt, selected_demo.name, true);
+								}}
+								class="flex items-center w-fit min-w-fit bg-gradient-to-r from-purple-100 to-purple-50 border border-purple-200 px-4 py-0.5 rounded-full text-purple-800 hover:shadow"
+							>
+								<div class="enter">Fix Error</div>
+							</button>
+						{:else if code_state.status === "idle"}
 							<button
 								on:click={() => {
-									suspend_and_resume_auto_run(() =>
-										generate_code(user_query, selected_demo.name)
-									);
+									suspend_and_resume_auto_run(() => {
+										generate_code(user_query, selected_demo.name);
+									});
 								}}
 								class="flex items-center w-fit min-w-fit bg-gradient-to-r from-orange-100 to-orange-50 border border-orange-200 px-4 py-0.5 rounded-full text-orange-800 hover:shadow"
 							>
 								<div class="enter">Ask AI</div>
 							</button>
 							<sup class="text-orange-800 text-xs ml-0.5">BETA</sup>
-						{:else}
+						{:else if code_state.status === "generating" || code_state.status === "regenerating"}
 							<button
 								on:click={() => {
 									cancelGeneration();
-									generation_error = "Cancelled!";
-									setInterval(() => {
-										generation_error = "";
-									}, 2000);
 								}}
 								class="flex items-center w-fit min-w-fit bg-gradient-to-r from-red-100 to-red-50 border border-red-200 px-4 py-0.5 rounded-full text-red-800 hover:shadow"
+								class:from-purple-100={code_state.status === "regenerating"}
+								class:to-purple-50={code_state.status === "regenerating"}
+								class:border-purple-200={code_state.status === "regenerating"}
+								class:text-purple-800={code_state.status === "regenerating"}
 							>
 								<div class="enter">Cancel</div>
 							</button>
@@ -756,7 +936,7 @@
 					</div>
 				</div>
 
-				<div class="flex-1 pl-3" id="lite-demo" />
+				<div class="flex-1 pl-3" id="lite-demo" bind:this={lite_element} />
 			</div>
 		</div>
 	</Slider>
@@ -838,6 +1018,15 @@
 	.loader {
 		border: 1px solid #fcc089;
 		border-top: 2px solid #ff7c00;
+		border-radius: 50%;
+		width: 15px;
+		height: 15px;
+		animation: spin 1.2s linear infinite;
+	}
+
+	.loader-purple {
+		border: 1px solid rgba(208, 35, 208, 0.657);
+		border-top: 2px solid rgb(208, 35, 208);
 		border-radius: 50%;
 		width: 15px;
 		height: 15px;
@@ -940,5 +1129,67 @@
 	.code-scroll {
 		scrollbar-width: thin;
 		scrollbar-color: #888 transparent;
+	}
+
+	/* for checkbox */
+	label {
+		color: #27272a;
+	}
+
+	label > * + * {
+		margin-left: var(--size-2);
+	}
+
+	input {
+		--ring-color: transparent;
+		position: relative;
+		box-shadow: var(--checkbox-shadow);
+		border: 1px solid var(--checkbox-border-color);
+		border-radius: var(--checkbox-border-radius);
+		background-color: var(--checkbox-background-color);
+		line-height: var(--line-sm);
+	}
+
+	input:checked,
+	input:checked:hover,
+	input:checked:focus {
+		background-image: var(--checkbox-check);
+		background-color: var(--checkbox-background-color-selected);
+		border-color: var(--checkbox-border-color-focus);
+	}
+
+	input:checked:focus {
+		background-image: var(--checkbox-check);
+		background-color: var(--checkbox-background-color-selected);
+		border-color: var(--checkbox-border-color-focus);
+	}
+
+	input:hover {
+		border-color: var(--checkbox-border-color-hover);
+		background-color: var(--checkbox-background-color-hover);
+	}
+
+	input:focus {
+		border-color: var(--checkbox-border-color-focus);
+		background-color: var(--checkbox-background-color-focus);
+	}
+
+	input[disabled],
+	.disabled {
+		cursor: not-allowed;
+	}
+
+	input:hover {
+		cursor: pointer;
+	}
+
+	:global(.toast-body.error) {
+		border: 1px solid var(--color-red-700) !important;
+		background: var(--color-red-50) !important;
+	}
+
+	:global(.toast-wrap) {
+		position: static !important;
+		width: 100% !important;
 	}
 </style>

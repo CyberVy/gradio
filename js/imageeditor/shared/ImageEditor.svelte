@@ -2,7 +2,7 @@
 	import type { Writable, Readable } from "svelte/store";
 	import type { Spring } from "svelte/motion";
 	import { type PixiApp } from "./utils/pixi";
-	import { type CommandManager } from "./utils/commands";
+	import { type CommandManager, type CommandNode } from "./utils/commands";
 
 	export const EDITOR_KEY = Symbol("editor");
 	export type context_type = "bg" | "layers" | "crop" | "draw" | "erase";
@@ -71,10 +71,12 @@
 		clear?: never;
 		save: void;
 		change: void;
+		history: CommandManager["current_history"];
 	}>();
 	export let crop_constraint = false;
 	export let canvas_size: [number, number] | undefined;
 	export let parent_height: number;
+	export let full_history: CommandNode | null = null;
 
 	$: orig_canvas_size = canvas_size;
 
@@ -98,7 +100,10 @@
 		child_bottom: 0
 	});
 
+	export let canvas_height = undefined;
+
 	$: height = $editor_box.child_height;
+	$: canvas_height = $editor_box.child_height + 1;
 
 	const crop = writable<[number, number, number, number]>([0, 0, 1, 1]);
 	const position_spring = spring(
@@ -114,7 +119,15 @@
 
 	const { can_redo, can_undo, current_history } = CommandManager;
 
+	function get_start_history(history: any): any {
+		if (history.previous) {
+			return get_start_history(history.previous);
+		}
+		return history;
+	}
+
 	$: $current_history.previous, dispatch("change");
+	$: dispatch("history", get_start_history($current_history));
 
 	$: {
 		history = !!$current_history.previous || $active_tool !== "bg";
@@ -237,10 +250,10 @@
 		if (!$editor_box) return;
 		const [l, t, w, h] = $crop;
 
-		const cx = l * $editor_box.child_width;
-		const cy = t * $editor_box.child_height;
-		const cw = w * $editor_box.child_width;
-		const ch = h * $editor_box.child_height;
+		const cx = 0;
+		const cy = 0;
+		const cw = $editor_box.child_width;
+		const ch = $editor_box.child_height;
 
 		const x = 0.5 * $editor_box.child_width - cx - cw / 2;
 		const y = 0.5 * $editor_box.child_height - cy - ch / 2;
@@ -256,10 +269,10 @@
 		return $pixi?.get_blobs(
 			$pixi.get_layers(),
 			new Rectangle(
-				Math.round(l * $dimensions[0]),
-				Math.round(t * $dimensions[1]),
-				Math.round(w * $dimensions[0]),
-				Math.round(h * $dimensions[1])
+				Math.round(0),
+				Math.round(0),
+				Math.round(1 * $dimensions[0]),
+				Math.round(1 * $dimensions[1])
 			),
 			$dimensions
 		);
@@ -316,6 +329,12 @@
 
 		resize(...$dimensions);
 
+		tick().then(() => {
+			if (full_history) {
+				CommandManager.hydrate(full_history);
+			}
+		});
+
 		return () => {
 			$pixi?.destroy();
 			resizer.disconnect();
@@ -362,14 +381,10 @@
 		<div
 			class="canvas"
 			class:no-border={!bg && $active_tool === "bg" && !history}
-			style:width="{$crop[2] * $editor_box.child_width + 1}px"
-			style:height="{$crop[3] * $editor_box.child_height + 1}px"
-			style:top="{$crop[1] * $editor_box.child_height +
-				($editor_box.child_top - $editor_box.parent_top) -
-				0.5}px"
-			style:left="{$crop[0] * $editor_box.child_width +
-				($editor_box.child_left - $editor_box.parent_left) -
-				0.5}px"
+			style:width="{$editor_box.child_width + 1}px"
+			style:height="{$editor_box.child_height + 1}px"
+			style:top="{$editor_box.child_top - $editor_box.parent_top - 0.5}px"
+			style:left="{$editor_box.child_left - $editor_box.parent_left - 0.5}px"
 		></div>
 	</div>
 </div>
@@ -392,6 +407,9 @@
 	.container {
 		position: relative;
 		margin: var(--spacing-md);
+		/* in case the canvas_size is really small */
+		/* set min-height so that upload text does not cover the toolbar */
+		min-height: 100px;
 	}
 
 	.no-border {

@@ -465,6 +465,9 @@ importers:
       '@gradio/paramviewer':
         specifier: workspace:^
         version: link:../paramviewer
+      '@gradio/statustracker':
+        specifier: workspace:^
+        version: link:../statustracker
       '@gradio/tabitem':
         specifier: workspace:^
         version: link:../tabitem
@@ -710,6 +713,9 @@ importers:
 
   js/browserstate:
     dependencies:
+      '@gradio/utils':
+        specifier: workspace:^
+        version: link:../utils
       crypto-js:
         specifier: ^4.1.1
         version: 4.2.0
@@ -1197,6 +1203,9 @@ importers:
       '@gradio/client':
         specifier: workspace:^
         version: link:../../client/js
+      '@gradio/icons':
+        specifier: workspace:^
+        version: link:../icons
       '@gradio/markdown-code':
         specifier: workspace:^
         version: link:../markdown-code
@@ -12006,7 +12015,7 @@ snapshots:
 
   code-red@1.0.4:
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.4.15
+      '@jridgewell/sourcemap-codec': 1.5.0
       '@types/estree': 1.0.5
       acorn: 8.11.3
       estree-walker: 3.0.3

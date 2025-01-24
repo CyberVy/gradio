@@ -40,7 +40,7 @@ from gradio import (
     utils,
     wasm_utils,
 )
-from gradio.blocks_events import BlocksEvents, BlocksMeta
+from gradio.blocks_events import BLOCKS_EVENTS, BlocksEvents, BlocksMeta
 from gradio.context import (
     Context,
     LocalContext,
@@ -426,7 +426,9 @@ class BlockContext(Block):
     def get_component_class_id(cls) -> str:
         module_name = cls.__module__
         module_path = sys.modules[module_name].__file__
-        module_hash = hashlib.md5(f"{cls.__name__}_{module_path}".encode()).hexdigest()
+        module_hash = hashlib.sha256(
+            f"{cls.__name__}_{module_path}".encode()
+        ).hexdigest()
         return module_hash
 
     @property
@@ -547,7 +549,6 @@ class BlockFunction:
         self.queue = False if fn is None else queue
         self.scroll_to_output = False if utils.get_space() else scroll_to_output
         self.show_api = show_api
-        self.zero_gpu = hasattr(self.fn, "zerogpu")
         self.types_generator = inspect.isgeneratorfunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
@@ -608,7 +609,6 @@ class BlockFunction:
             "trigger_only_on_success": self.trigger_only_on_success,
             "trigger_mode": self.trigger_mode,
             "show_api": self.show_api,
-            "zerogpu": self.zero_gpu,
             "rendered_in": self.rendered_in._id if self.rendered_in else None,
             "connection": self.connection,
             "time_limit": self.time_limit,
@@ -781,11 +781,12 @@ class BlocksConfig:
         if fn is not None and not cancels:
             check_function_inputs_match(fn, inputs, inputs_as_dict)
 
-        if _targets[0][1] in ["change", "key_up"] and trigger_mode is None:
-            trigger_mode = "always_last"
-        elif _targets[0][1] in ["stream"] and trigger_mode is None:
-            trigger_mode = "multiple"
-        elif trigger_mode is None:
+        if len(_targets) and trigger_mode is None:
+            if _targets[0][1] in ["change", "key_up"]:
+                trigger_mode = "always_last"
+            elif _targets[0][1] in ["stream"]:
+                trigger_mode = "multiple"
+        if trigger_mode is None:
             trigger_mode = "once"
         elif trigger_mode not in ["once", "multiple", "always_last"]:
             raise ValueError(
@@ -1083,6 +1084,7 @@ class Blocks(BlockContext, BlocksEvents, metaclass=BlocksMeta):
         self.renderables: list[Renderable] = []
         self.state_holder: StateHolder
         self.custom_mount_path: str | None = None
+        self.pwa = False
 
         # For analytics_enabled and allow_flagging: (1) first check for
         # parameter, (2) check for env variable, (3) default to True/"manual"
@@ -1317,20 +1319,13 @@ class Blocks(BlockContext, BlocksEvents, metaclass=BlocksMeta):
                     dependency["no_target"] = True
                 else:
                     targets = [
-                        getattr(
-                            original_mapping[
-                                target if isinstance(target, int) else target[0]
-                            ],
-                            trigger if isinstance(target, int) else target[1],
-                        )
-                        for target in _targets
-                    ]
-                    targets = [
                         EventListenerMethod(
                             t.__self__ if t.has_trigger else None,
                             t.event_name,  # type: ignore
                         )
-                        for t in targets
+                        for t in Blocks.get_event_targets(
+                            original_mapping, _targets, trigger
+                        )
                     ]
                 dependency = root_block.default_config.set_event_trigger(
                     targets=targets, fn=fn, **dependency
@@ -1434,6 +1429,11 @@ class Blocks(BlockContext, BlocksEvents, metaclass=BlocksMeta):
             ]
             for dependency in self.fns.values():
                 dependency._id += dependency_offset
+                # Any event -- e.g. Blocks.load() -- that is triggered by this Blocks
+                # should now be triggered by the root Blocks instead.
+                for target in dependency.targets:
+                    if target[0] == self._id:
+                        target = (Context.root_block._id, target[1])
                 api_name = dependency.api_name
                 if isinstance(api_name, str):
                     api_name_ = utils.append_unique_suffix(
@@ -1475,10 +1475,7 @@ class Blocks(BlockContext, BlocksEvents, metaclass=BlocksMeta):
             return False
         if any(block.stateful for block in dependency.inputs):
             return False
-        if any(block.stateful for block in dependency.outputs):
-            return False
-
-        return True
+        return not any(block.stateful for block in dependency.outputs)
 
     def __call__(self, *inputs, fn_index: int = 0, api_name: str | None = None):
         """
@@ -2174,6 +2171,7 @@ Received inputs:
             "fill_height": self.fill_height,
             "fill_width": self.fill_width,
             "theme_hash": self.theme_hash,
+            "pwa": self.pwa,
         }
         config.update(self.default_config.get_config())  # type: ignore
         config["connect_heartbeat"] = utils.connect_heartbeat(
@@ -2313,6 +2311,7 @@ Received inputs:
         node_server_name: str | None = None,
         node_port: int | None = None,
         ssr_mode: bool | None = None,
+        pwa: bool | None = None,
         _frontend: bool = True,
     ) -> tuple[App, str, str]:
         """
@@ -2351,6 +2350,7 @@ Received inputs:
             enable_monitoring: Enables traffic monitoring of the app through the /monitoring endpoint. By default is None, which enables this endpoint. If explicitly True, will also print the monitoring URL to the console. If False, will disable monitoring altogether.
             strict_cors: If True, prevents external domains from making requests to a Gradio server running on localhost. If False, allows requests to localhost that originate from localhost but also, crucially, from "null". This parameter should normally be True to prevent CSRF attacks but may need to be False when embedding a *locally-running Gradio app* using web components.
             ssr_mode: If True, the Gradio app will be rendered using server-side rendering mode, which is typically more performant and provides better SEO, but this requires Node 20+ to be installed on the system. If False, the app will be rendered using client-side rendering mode. If None, will use GRADIO_SSR_MODE environment variable or default to False.
+            pwa: If True, the Gradio app will be set up as an installable PWA (Progressive Web App). If set to None (default behavior), then the PWA feature will be enabled if this Gradio app is launched on Spaces, but not otherwise.
         Returns:
             app: FastAPI app object that is running the demo
             local_url: Locally accessible link to the demo
@@ -2451,9 +2451,10 @@ Received inputs:
                 if block.key is None:
                     block.key = f"__{block._id}__"
 
-        self.config = self.get_config_file()
+        self.pwa = utils.get_space() is not None if pwa is None else pwa
         self.max_threads = max_threads
         self._queue.max_thread_count = max_threads
+        self.config = self.get_config_file()
 
         self.ssr_mode = (
             False
@@ -3006,3 +3007,29 @@ Received inputs:
                 api_info["named_endpoints"][f"/{fn.api_name}"] = dependency_info
 
         return api_info
+
+    @staticmethod
+    def get_event_targets(
+        original_mapping: dict[int, Block], _targets: list, trigger: str
+    ) -> list:
+        target_events = []
+        for target in _targets:
+            # If target is just an integer (old format), use it directly with the trigger
+            # Otherwise target is a tuple and we use its components
+            target_id = target if isinstance(target, int) else target[0]
+            event_name = trigger if isinstance(target, int) else target[1]
+            block = original_mapping.get(target_id)
+            # Blocks events are a special case because they are not stored in the blocks list in the config
+            if block is None:
+                if event_name in [
+                    event.event_name if isinstance(event, EventListener) else event
+                    for event in BLOCKS_EVENTS
+                ]:
+                    block = Context.root_block
+                else:
+                    raise ValueError(
+                        f"Cannot find Block with id: {target_id} but is present as a target in the config"
+                    )
+            event = getattr(block, event_name)
+            target_events.append(event)
+        return target_events

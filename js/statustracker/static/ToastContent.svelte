@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Error, Info, Warning } from "@gradio/icons";
+	import { Error, Info, Warning, Success } from "@gradio/icons";
 	import DOMPurify from "dompurify";
 	import { createEventDispatcher, onMount } from "svelte";
 	import { fade } from "svelte/transition";
@@ -66,6 +66,8 @@
 			<Warning />
 		{:else if type === "info"}
 			<Info />
+		{:else if type === "success"}
+			<Success />
 		{:else if type === "error"}
 			<Error />
 		{/if}
@@ -113,74 +115,6 @@
 		background: var(--color-red-50);
 	}
 
-	@media (prefers-color-scheme: dark) {
-		.toast-body.error {
-			border: 1px solid var(--color-red-500);
-			background-color: var(--color-grey-950);
-		}
-
-		.toast-body.warning {
-			border: 1px solid var(--color-yellow-700);
-			background: var(--color-yellow-50);
-		}
-		.toast-body.warning {
-			border: 1px solid var(--color-yellow-500);
-			background-color: var(--color-grey-950);
-		}
-
-		.toast-body.info {
-			border: 1px solid var(--color-grey-500);
-			background-color: var(--color-grey-950);
-		}
-
-		.toast-title.error {
-			color: var(--color-red-50);
-		}
-
-		.toast-title.warning {
-			color: var(--color-yellow-50);
-		}
-		.toast-title.info {
-			color: var(--color-grey-50);
-		}
-		.toast-close.error {
-			color: var(--color-red-500);
-		}
-		.toast-close.warning {
-			color: var(--color-yellow-500);
-		}
-		.toast-close.info {
-			color: var(--color-grey-500);
-		}
-		.toast-text.error {
-			color: var(--color-red-50);
-		}
-		.toast-text.warning {
-			color: var(--color-yellow-50);
-		}
-		.toast-text.info {
-			color: var(--color-grey-50);
-		}
-		.toast-icon.error {
-			color: var(--color-red-500);
-		}
-		.toast-icon.warning {
-			color: var(--color-yellow-500);
-		}
-		.toast-icon.info {
-			color: var(--color-grey-500);
-		}
-		.timer.error {
-			background: var(--color-red-500);
-		}
-		.timer.warning {
-			background: var(--color-yellow-500);
-		}
-		.timer.info {
-			background: var(--color-grey-500);
-		}
-	}
-
 	:global(.dark) .toast-body.error {
 		border: 1px solid var(--color-red-500);
 		background-color: var(--color-grey-950);
@@ -197,10 +131,19 @@
 
 	.toast-body.info {
 		border: 1px solid var(--color-grey-700);
-		background: var(--color-grey-50);
+		background: var (--color-grey-50);
 	}
 	:global(.dark) .toast-body.info {
 		border: 1px solid var(--color-grey-500);
+		background-color: var(--color-grey-950);
+	}
+
+	.toast-body.success {
+		border: 1px solid var(--color-green-700);
+		background: var(--color-green-50);
+	}
+	:global(.dark) .toast-body.success {
+		border: 1px solid var(--color-green-500);
 		background-color: var(--color-grey-950);
 	}
 
@@ -233,6 +176,13 @@
 		color: var(--color-grey-50);
 	}
 
+	.toast-title.success {
+		color: var(--color-green-700);
+	}
+	:global(.dark) .toast-title.success {
+		color: var(--color-green-50);
+	}
+
 	.toast-close {
 		margin: 0 var(--size-3);
 		border-radius: var(--size-3);
@@ -262,6 +212,13 @@
 		color: var(--color-grey-500);
 	}
 
+	.toast-close.success {
+		color: var(--color-green-700);
+	}
+	:global(.dark) .toast-close.success {
+		color: var(--color-green-500);
+	}
+
 	.toast-text {
 		font-size: var(--text-lg);
 	}
@@ -287,6 +244,13 @@
 
 	:global(.dark) .toast-text.info {
 		color: var(--color-grey-50);
+	}
+
+	.toast-text.success {
+		color: var(--color-green-700);
+	}
+	:global(.dark) .toast-text.success {
+		color: var(--color-green-50);
 	}
 
 	.toast-details {
@@ -333,6 +297,14 @@
 		color: var(--color-grey-500);
 	}
 
+	.toast-icon.success {
+		color: var(--color-green-700);
+	}
+
+	:global(.dark) .toast-icon.success {
+		color: var(--color-green-500);
+	}
+
 	@keyframes countdown {
 		from {
 			transform: scaleX(1);
@@ -374,6 +346,14 @@
 
 	:global(.dark) .timer.info {
 		background: var(--color-grey-500);
+	}
+
+	.timer.success {
+		background: var(--color-green-700);
+	}
+
+	:global(.dark) .timer.success {
+		background: var(--color-green-500);
 	}
 
 	.hidden {

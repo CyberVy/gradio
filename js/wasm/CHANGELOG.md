@@ -1,5 +1,17 @@
 # @gradio/wasm
 
+## 0.17.0
+
+### Features
+
+- [#10366](https://github.com/gradio-app/gradio/pull/10366) [`b10f5e1`](https://github.com/gradio-app/gradio/commit/b10f5e150a048ded255efdd34cfb7d5706ae2ff7) - Lite: retry install.  Thanks @whitphx!
+
+## 0.16.0
+
+### Features
+
+- [#9984](https://github.com/gradio-app/gradio/pull/9984) [`45df1b1`](https://github.com/gradio-app/gradio/commit/45df1b1978e597546a208ecbf5b3aca56137edc5) - Lite: Capture stdout and stderr from the main thread.  Thanks @whitphx!
+
 ## 0.15.0
 
 ### Features

@@ -54,17 +54,18 @@ class File(Component):
         container: bool = True,
         scale: int | None = None,
         min_width: int = 160,
-        height: int | float | None = None,
+        height: int | str | float | None = None,
         interactive: bool | None = None,
         visible: bool = True,
         elem_id: str | None = None,
         elem_classes: list[str] | str | None = None,
         render: bool = True,
         key: int | str | None = None,
+        allow_reordering: bool = False,
     ):
         """
         Parameters:
-            value: Default file(s) to display, given as a str file path or URL, or a list of str file paths / URLs. If callable, the function will be called whenever the app loads to set the initial value of the component.
+            value: Default file(s) to display, given as a str file path or URL, or a list of str file paths / URLs. If a function is provided, the function will be called each time the app loads to set the initial value of this component.
             file_count: if single, allows user to upload one file. If "multiple", user uploads multiple files. If "directory", user uploads all files in selected directory. Return type will be list for each file in case of "multiple" or "directory".
             file_types: List of file extensions or types of files to be uploaded (e.g. ['image', '.json', '.mp4']). "file" allows any file to be uploaded, "image" allows only image files to be uploaded, "audio" allows only audio files to be uploaded, "video" allows only video files to be uploaded, "text" allows only text files to be uploaded.
             type: Type of value to be returned by component. "file" returns a temporary file object with the same base name as the uploaded file, whose full path can be retrieved by file_obj.name, "binary" returns an bytes object.
@@ -82,6 +83,7 @@ class File(Component):
             elem_classes: An optional list of strings that are assigned as the classes of this component in the HTML DOM. Can be used for targeting CSS styles.
             render: If False, component will not render be rendered in the Blocks context. Should be used if the intention is to assign event listeners now but render the component later.
             key: if assigned, will be used to assume identity across a re-render. Components that have the same key across a re-render will have their value preserved.
+            allow_reordering: if True, will allow users to reorder uploaded files by dragging and dropping.
         """
         file_count_valid_types = ["single", "multiple", "directory"]
         self.file_count = file_count
@@ -129,6 +131,7 @@ class File(Component):
         )
         self.type = type
         self.height = height
+        self.allow_reordering = allow_reordering
 
     def _process_single_file(self, f: FileData) -> NamedString | bytes:
         file_name = f.path

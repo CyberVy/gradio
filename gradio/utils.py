@@ -8,6 +8,7 @@ import copy
 import functools
 import hashlib
 import importlib
+import importlib.resources
 import importlib.util
 import inspect
 import json
@@ -41,7 +42,7 @@ from contextlib import contextmanager
 from functools import wraps
 from io import BytesIO
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, NoneType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -49,6 +50,8 @@ from typing import (
     Literal,
     Optional,
     TypeVar,
+    get_args,
+    get_origin,
 )
 
 import anyio
@@ -517,7 +520,7 @@ def safe_deepcopy(obj: Any) -> Any:
 
 
 def assert_configs_are_equivalent_besides_ids(
-    config1: dict, config2: dict, root_keys: tuple = ("mode",)
+    config1: BlocksConfigDict, config2: BlocksConfigDict, root_keys: tuple = ("mode",)
 ):
     """Allows you to test if two different Blocks configs produce the same demo.
 
@@ -562,20 +565,31 @@ def assert_configs_are_equivalent_besides_ids(
             if "children" in child1 or "children" in child2:
                 same_children_recursive(child1["children"], child2["children"])
 
-    children1 = config1["layout"]["children"]
-    children2 = config2["layout"]["children"]
-    same_children_recursive(children1, children2)
+    if "layout" in config1:
+        if "layout" not in config2:
+            raise ValueError(
+                "The first config has a layout key, but the second does not"
+            )
+        children1 = config1["layout"]["children"]
+        children2 = config2["layout"]["children"]
+        same_children_recursive(children1, children2)
 
-    for d1, d2 in zip(config1["dependencies"], config2["dependencies"], strict=False):
-        for t1, t2 in zip(d1.pop("targets"), d2.pop("targets"), strict=False):
-            assert_same_components(t1[0], t2[0])
-        for i1, i2 in zip(d1.pop("inputs"), d2.pop("inputs"), strict=False):
-            assert_same_components(i1, i2)
-        for o1, o2 in zip(d1.pop("outputs"), d2.pop("outputs"), strict=False):
-            assert_same_components(o1, o2)
-
-        if d1 != d2:
-            raise ValueError(f"{d1} does not match {d2}")
+    if "dependencies" in config1:
+        if "dependencies" not in config2:
+            raise ValueError(
+                "The first config has a dependencies key, but the second does not"
+            )
+        for d1, d2 in zip(
+            config1["dependencies"], config2["dependencies"], strict=False
+        ):
+            for t1, t2 in zip(d1.pop("targets"), d2.pop("targets"), strict=False):
+                assert_same_components(t1[0], t2[0])
+            for i1, i2 in zip(d1.pop("inputs"), d2.pop("inputs"), strict=False):
+                assert_same_components(i1, i2)
+            for o1, o2 in zip(d1.pop("outputs"), d2.pop("outputs"), strict=False):
+                assert_same_components(o1, o2)
+            if d1 != d2:
+                raise ValueError(f"{d1} does not match {d2}")
 
     return True
 
@@ -1098,7 +1112,7 @@ def is_in_or_equal(path_1: str | Path, path_2: str | Path) -> bool:
 
 
 @document()
-def set_static_paths(paths: list[str | Path]) -> None:
+def set_static_paths(paths: str | Path | list[str | Path]) -> None:
     """
     Set the static paths to be served by the gradio app.
 
@@ -1109,7 +1123,7 @@ def set_static_paths(paths: list[str | Path]) -> None:
     Calling this function will set the static paths for all gradio applications defined in the same interpreter session until it is called again or the session ends.
 
     Parameters:
-        paths: List of filepaths or directory names to be served by the gradio app. If it is a directory name, ALL files located within that directory will be considered static and not moved to the gradio cache. This also means that ALL files in that directory will be accessible over the network.
+        paths: filepath or list of filepaths or directory names to be served by the gradio app. If it is a directory name, ALL files located within that directory will be considered static and not moved to the gradio cache. This also means that ALL files in that directory will be accessible over the network.
     Example:
         import gradio as gr
 
@@ -1130,6 +1144,8 @@ def set_static_paths(paths: list[str | Path]) -> None:
     """
     from gradio.data_classes import _StaticFiles
 
+    if isinstance(paths, (str, Path)):
+        paths = [Path(paths)]
     _StaticFiles.all_paths.extend([Path(p).resolve() for p in paths])
 
 
@@ -1155,7 +1171,7 @@ def _is_static_file(file_path: Any, static_files: list[Path]) -> bool:
     return any(is_in_or_equal(file_path, static_file) for static_file in static_files)
 
 
-HTML_TAG_RE = re.compile("<[^>]*?(?:\n[^>]*?)*>", re.DOTALL)
+HTML_TAG_RE = re.compile("<[^\n>]*(?:\n[^\n>]*)*>", re.DOTALL)
 
 
 def remove_html_tags(raw_html: str | None) -> str:
@@ -1244,7 +1260,7 @@ def diff(old, new):
         if obj1 == obj2:
             return edits
 
-        if type(obj1) != type(obj2):
+        if type(obj1) is not type(obj2):
             edits.append(("replace", path, obj2))
             return edits
 
@@ -1285,9 +1301,9 @@ def get_upload_folder() -> str:
     )
 
 
-def get_function_params(func: Callable) -> list[tuple[str, bool, Any]]:
+def get_function_params(func: Callable) -> list[tuple[str, bool, Any, Any]]:
     """
-    Gets the parameters of a function as a list of tuples of the form (name, has_default, default_value).
+    Gets the parameters of a function as a list of tuples of the form (name, has_default, default_value, type_hint).
     Excludes *args and **kwargs, as well as args that are Gradio-specific, such as gr.Request, gr.EventData, gr.OAuthProfile, and gr.OAuthToken.
     """
     params_info = []
@@ -1302,10 +1318,24 @@ def get_function_params(func: Callable) -> list[tuple[str, bool, Any]]:
         if is_special_typed_parameter(name, type_hints):
             continue
         if parameter.default is inspect.Parameter.empty:
-            params_info.append((name, False, None))
+            params_info.append((name, False, None, type_hints.get(name, None)))
         else:
-            params_info.append((name, True, parameter.default))
+            params_info.append(
+                (name, True, parameter.default, type_hints.get(name, None))
+            )
     return params_info
+
+
+def get_return_types(func: Callable) -> list:
+    return_hint = inspect.signature(func).return_annotation
+
+    if return_hint in {inspect.Signature.empty, None, NoneType}:
+        return []
+
+    if get_origin(return_hint) is tuple:
+        return list(get_args(return_hint))
+
+    return [return_hint]
 
 
 def simplify_file_data_in_str(s):
@@ -1510,7 +1540,8 @@ def is_allowed_file(
     bool, Literal["in_blocklist", "allowed", "created", "not_created_or_allowed"]
 ]:
     in_blocklist = any(
-        is_in_or_equal(path, blocked_path) for blocked_path in blocked_paths
+        is_in_or_equal(str(path).lower(), str(blocked_path).lower())
+        for blocked_path in blocked_paths
     )
     if in_blocklist:
         return False, "in_blocklist"
@@ -1587,3 +1618,34 @@ def none_or_singleton_to_list(value: Any) -> list:
     if isinstance(value, (list, tuple)):
         return list(value)
     return [value]
+
+
+def get_icon_path(icon_name: str) -> str:
+    """Get the path to an icon file in the "gradio/icons/" directory
+    and return it as a static file path so that it can be used by components.
+
+    Parameters:
+        icon_name: Name of the icon file (e.g. "plus.svg")
+    Returns:
+        str: Full path to the icon file served as a static file
+    """
+    icon_path = str(
+        importlib.resources.files("gradio").joinpath(str(Path("icons") / icon_name))
+    )
+    if Path(icon_path).exists():
+        set_static_paths(icon_path)
+        return icon_path
+    raise ValueError(f"Icon file not found: {icon_name}")
+
+
+def dict_factory(items):
+    """
+    A utility function to convert a dataclass that includes pydantic fields to a dictionary.
+    """
+    d = {}
+    for key, value in items:
+        if hasattr(value, "model_dump"):
+            d[key] = value.model_dump()
+        else:
+            d[key] = value
+    return d
